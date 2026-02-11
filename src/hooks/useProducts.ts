@@ -1,72 +1,107 @@
 import { useSuiClientQuery } from "@mysten/dapp-kit";
-import { CONSTANTS } from "@/lib/constants";
+import { useQuery } from "@tanstack/react-query";
 
-const DUMMY_PRODUCTS = [
-    { id: "dummy1", name: "Premium Rice 5kg", price: BigInt(500000000), stock: BigInt(20), farmer: "0x123...abc" },
-    { id: "dummy2", name: "Organic Corn 1kg", price: BigInt(150000000), stock: BigInt(50), farmer: "0x456...def" },
-    { id: "dummy3", name: "Fresh Chillies 250g", price: BigInt(50000000), stock: BigInt(10), farmer: "0x789...ghi" },
-];
+export interface Product {
+    id: string;
+    db_id: string;
+    name: string;
+    description: string;
+    imageUrl: string;
+    category: string;
+    price: bigint;
+    stock: bigint;
+    farmer: string;
+}
+
+interface ProductMetadata {
+    id: string; // Database ID
+    sui_object_id: string;
+    name: string;
+    description: string;
+    price_per_unit: string;
+    stock: string;
+    image_url: string;
+    category: string;
+    farmer_address: string;
+}
 
 export function useProducts() {
-    // 1. Fetch "ProductListedEvent" events to find all product IDs
-    const { data: eventsData, isPending: isEventsLoading, error: eventsError } = useSuiClientQuery(
-        "queryEvents",
-        {
-            query: {
-                MoveEventModule: {
-                    package: CONSTANTS.PACKAGE_ID,
-                    module: CONSTANTS.MARKETPLACE_MODULE,
-                },
-            },
-            order: "descending",
+    // 1. Fetch metadata from Database API (for images, descriptions)
+    const { data: apiData, isLoading: isApiLoading, refetch: refetchApi } = useQuery({
+        queryKey: ["products-metadata"],
+        queryFn: async () => {
+            const res = await fetch("/api/products?limit=100");
+            if (!res.ok) throw new Error("Failed to fetch products from API");
+            return res.json();
         }
-    );
+    });
 
-    // 2. Extract unique product IDs
-    const productIds = eventsData?.data?.map((event) => {
-        const parsedJson = event.parsedJson as any;
-        return parsedJson?.product_id;
-    }) || [];
+    const productsMetadata = (apiData?.products || []) as ProductMetadata[];
 
-    // Remove duplicates just in case
-    const uniqueProductIds = Array.from(new Set(productIds));
+    // 2. Extract Sui Object IDs from API data (to fetch live data from blockchain)
+    const suiObjectIds = productsMetadata.map(p => p.sui_object_id);
 
-    // 3. Fetch the actual objects to get current stock/price
-    const { data: objectsData, isPending: isObjectsLoading, error: objectsError } = useSuiClientQuery(
+    // 3. Fetch live data from Blockchain (for real-time stock & price)
+    const { data: objectsData, isPending: isObjectsLoading, refetch: refetchSui } = useSuiClientQuery(
         "multiGetObjects",
         {
-            ids: uniqueProductIds,
+            ids: suiObjectIds,
             options: {
                 showContent: true,
                 showOwner: true,
             },
         },
         {
-            enabled: uniqueProductIds.length > 0,
+            enabled: suiObjectIds.length > 0,
         }
     );
 
-    // 4. Parse the object data into a usable format
-    const products = objectsData?.map((obj) => {
-        const content = obj.data?.content as any;
-        if (!content || content.dataType !== "moveObject") return null;
+    // 4. Merge Data: Base is API data, override with Blockchain data if available
+    const products = productsMetadata.map((meta) => {
+        // Find corresponding blockchain object
+        const blockchainObj = objectsData?.find(
+            (obj) => obj.data?.objectId === meta.sui_object_id
+        );
 
-        const fields = content.fields;
+        let blockchainData = null;
+        if (blockchainObj?.data?.content?.dataType === "moveObject") {
+            const content = blockchainObj.data.content as unknown as { fields: { price_per_unit: string; stock: string } };
+            const fields = content.fields;
+            if (fields) {
+                blockchainData = {
+                    price: fields.price_per_unit,
+                    stock: fields.stock,
+                    // name & farmer also available on chain
+                };
+            }
+        }
+
+        // Jika data di blockchain tidak ditemukan (mungkin dihapus/archiv), kita bisa skip atau tandai.
+        // Untuk sekarang, kita tetap tampilkan dari database tapi dengan stok 0 jika tidak ada di chain.
+        // TAPI: Jika blockchainData ada, kita pakai stok & harga dari sana (Source of Truth).
+        
         return {
-            id: obj.data?.objectId,
-            name: fields.name,
-            price: BigInt(fields.price_per_unit), // Price is u64
-            stock: BigInt(fields.stock), // Stock is u64
-            farmer: fields.farmer,
+            id: meta.sui_object_id,          // Gunakan Sui Object ID sebagai ID utama di frontend
+            db_id: meta.id,                  // Simpan DB ID jika perlu
+            name: meta.name,                 // Nama dari DB (bisa diedit offline)
+            description: meta.description,   // Deskripsi dari DB
+            imageUrl: meta.image_url,        // Gambar dari DB
+            category: meta.category,         // Kategori dari DB
+            price: BigInt(blockchainData ? blockchainData.price : meta.price_per_unit), // Prioritas Chain
+            stock: BigInt(blockchainData ? blockchainData.stock : meta.stock),          // Prioritas Chain
+            farmer: meta.farmer_address,
         };
-    }).filter((p) => p !== null && p.stock > BigInt(0)) as { id: string; name: string; price: bigint; stock: bigint; farmer: string }[];
+    }).filter(p => p.stock > BigInt(0)); // Hanya tampilkan yang stok > 0 di Blockchain (atau DB jika chain gagal)
 
-    // Fallback to dummy data if no products found (for demo purposes)
-    const finalProducts = (products && products.length > 0) ? products : DUMMY_PRODUCTS;
+    const refetch = () => {
+        refetchApi();
+        refetchSui();
+    };
 
     return {
-        products: finalProducts,
-        isLoading: isEventsLoading || (uniqueProductIds.length > 0 && isObjectsLoading),
-        error: eventsError || objectsError,
+        products: products,
+        isLoading: isApiLoading || (suiObjectIds.length > 0 && isObjectsLoading),
+        error: null, // Simplifikasi error handling
+        refetch,
     };
 }

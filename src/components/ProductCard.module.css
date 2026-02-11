@@ -13,15 +13,39 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
-.image {
+.imageContainer {
     width: 100%;
-    height: 200px;
+    height: 250px; /* Tentukan tinggi tetap */
     background-color: #f3f4f6;
+    overflow: hidden;
+    position: relative;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.imageWrapper {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.productImage {
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.card:hover .productImage {
+    transform: scale(1.05); /* Zoom effect on hover */
+}
+
+.placeholderImage {
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 4rem;
     color: #9ca3af;
-    font-size: 3rem;
+    background-color: #f9fafb;
 }
 
 .content {

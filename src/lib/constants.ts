@@ -1,9 +1,11 @@
 export const CONSTANTS = {
     NETWORK: 'testnet',
-    // Replace with your actual package ID from reading the Move.toml or user input
-    PACKAGE_ID: '0xe6b6d6ace1137e5795824de0f81bc65608362861247f0d152653b0c44ccfc69b',
-    TREASURY_CAP: '0x64852a7680d5dda8e00c97a9b74efb91ebfbc6f8997b95c7f3dff8fb4f88c421',
-    COIN_TYPE: '0xe6b6d6ace1137e5795824de0f81bc65608362861247f0d152653b0c44ccfc69b::tani_token::TANI_TOKEN',
-    MARKETPLACE_MODULE: 'marketplace',
+    // ⚠️ IMPORTANT: This must be the Package ID where 'marketplace' module is deployed.
+    // If you deployed marketplace separately from token, use the Marketplace Package ID here.
+    PACKAGE_ID: '0x0a9e26ba0f2084e14e1c383704ee0f9460cb5772999e1c986f2fdd86079436c0',
+    TREASURY_CAP: '0x921ddac4d21d3d4f0db83dabf0c72eba0ff4b13af03151506116130f84f12e5e',
+    COIN_TYPE: '0x0a9e26ba0f2084e14e1c383704ee0f9460cb5772999e1c986f2fdd86079436c0::tani_token::TANI_TOKEN',
+    CLOCK_OBJECT: '0x6', // Sui system clock
+    MARKETPLACE_MODULE: 'marketplace', // Must match 'module tanitrust::marketplace'
     TOKEN_MODULE: 'tani_token'
 };

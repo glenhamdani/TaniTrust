@@ -1,18 +1,11 @@
 "use client";
 
 import styles from "./ProductCard.module.css";
-import { CONSTANTS } from "@/lib/constants";
-
-type Product = {
-    id: string;
-    name: string;
-    price: bigint;
-    stock: bigint;
-    farmer: string;
-};
+import NextImage from "next/image";
+import { Product } from "@/hooks/useProducts";
 
 interface ProductCardProps {
-    product: Product;
+    product: Product & { imageUrl?: string }; // Make strict
     onBuy: (product: Product) => void;
 }
 
@@ -25,8 +18,20 @@ export function ProductCard({ product, onBuy }: ProductCardProps) {
 
     return (
         <div className={styles.card}>
-            <div className={styles.image}>
-                🌾
+            <div className={styles.imageContainer}>
+                {product.imageUrl ? (
+                    <div className={styles.imageWrapper}>
+                         <NextImage 
+                            src={product.imageUrl} 
+                            alt={product.name} 
+                            fill
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            className={styles.productImage}
+                        />
+                    </div>
+                ) : (
+                    <div className={styles.placeholderImage}>🌾</div>
+                )}
             </div>
             <div className={styles.content}>
                 <h3 className={styles.title}>{product.name}</h3>

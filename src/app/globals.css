@@ -57,3 +57,49 @@ a {
 .btn-secondary:hover {
   background-color: #f3f4f6;
 }
+
+/* Override @mysten/dapp-kit ConnectButton to Green */
+button[data-dapp-kit="connect-button"],
+button[class*="ConnectButton"] {
+  background-color: #166534 !important;
+  color: white !important;
+  border: none !important;
+  padding: 0.625rem 1.25rem !important;
+  border-radius: 0.5rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  font-size: 0.95rem !important;
+}
+
+button[data-dapp-kit="connect-button"]:hover,
+button[class*="ConnectButton"]:hover {
+  background-color: #14532d !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Account Dropdown Button */
+button[data-dapp-kit="account-dropdown-trigger"] {
+  background-color: #166534 !important;
+  color: white !important;
+  border: none !important;
+  padding: 0.625rem 1.25rem !important;
+  border-radius: 0.5rem !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease !important;
+}
+
+button[data-dapp-kit="account-dropdown-trigger"]:hover {
+  background-color: #14532d !important;
+}
+
+/* Page Transitions */
+main {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* Smooth Scroll */
+html {
+  scroll-behavior: smooth;
+}

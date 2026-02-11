@@ -1,29 +1,26 @@
 "use client";
 
-import { useProducts } from "@/hooks/useProducts";
+import { useProducts, Product } from "@/hooks/useProducts";
 import { ProductCard } from "@/components/ProductCard";
 import styles from "./Marketplace.module.css";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { CONSTANTS } from "@/lib/constants";
-import { useState } from "react";
 
-import { ConnectWalletPrompt } from "@/components/ConnectWalletPrompt";
+import { useToast, ToastContainer } from "@/components/Toast";
 
 export default function Marketplace() {
-    const { products, isLoading, error } = useProducts();
+    const { products, isLoading, error, refetch } = useProducts();
+    const { toasts, addToast, removeToast } = useToast();
     const account = useCurrentAccount();
     const client = useSuiClient();
     const { mutate: signAndExecute } = useSignAndExecuteTransaction();
-    const [buyingId, setBuyingId] = useState<string | null>(null);
 
-    const handleBuy = async (product: any) => {
+    const handleBuy = async (product: Product) => {
         if (!account) {
-            alert("Please connect your wallet to buy items."); // Keep alert for action attempt, or use modal. For now, we'll stick to alert as user can browse.
+            alert("Please connect your wallet to buy items.");
             return;
         }
-
-        setBuyingId(product.id);
 
         try {
             // 1. Fetch user's TATO coins
@@ -34,7 +31,6 @@ export default function Marketplace() {
 
             if (coins.length === 0) {
                 alert("You don't have any TATO tokens! Use the faucet.");
-                setBuyingId(null);
                 return;
             }
 
@@ -62,7 +58,6 @@ export default function Marketplace() {
             const totalBalance = validCoins.reduce((acc, c) => acc + BigInt(c.balance), BigInt(0));
             if (totalBalance < price) {
                 alert(`Insufficient TATO balance. Needed: ${Number(price) / 100_000_000}, Have: ${Number(totalBalance) / 100_000_000}`);
-                setBuyingId(null);
                 return;
             }
 
@@ -77,7 +72,7 @@ export default function Marketplace() {
                     tx.pure.u64(1),               // quantity (hardcoded 1 for now)
                     tx.pure.u64(24),              // deadline_hours
                     coinToPay,                    // payment
-                    tx.object("0x6"),             // clock
+                    tx.object(CONSTANTS.CLOCK_OBJECT), // clock 0x6
                 ],
             });
 
@@ -87,46 +82,112 @@ export default function Marketplace() {
                     transaction: tx,
                 },
                 {
-                    onSuccess: (result) => {
+                    onSuccess: async (result) => {
                         console.log("Order created:", result);
-                        alert("Order successful! Check your Buyer Dashboard.");
-                        setBuyingId(null);
+                        addToast("Transaction sent. Waiting for confirmation...", "info");
+                        
+                        try {
+                            // Wait for transaction result WITH object changes
+                            const resultObj = await client.waitForTransaction({ 
+                                digest: result.digest,
+                                options: {
+                                    showEffects: true,
+                                    showObjectChanges: true,
+                                    showEvents: true
+                                }
+                            });
+                            
+                            addToast("✅ Order successful! Syncing...", "success");
+
+                            // Find the created Order object ID
+                            const orderChange = resultObj.objectChanges?.find((c: any) => 
+                                c.type === 'created' && c.objectType.includes("::Order")
+                            );
+
+                            if (orderChange && 'objectId' in orderChange) {
+                                // Sync to DB
+                                const syncData = {
+                                    sui_object_id: orderChange.objectId,
+                                    product_id: product.id,
+                                    buyer: account.address,
+                                    farmer: product.farmer,
+                                    quantity: "1", // Hardcoded quantity for now
+                                    total_price: product.price.toString(),
+                                    deadline: (Date.now() + (24 * 60 * 60 * 1000)).toString(), // Est. Deadline from client clock
+                                    status: 1 // Escrowed
+                                };
+
+                                const syncRes = await fetch('/api/orders/sync', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(syncData)
+                                });
+
+                                if (!syncRes.ok) {
+                                    const errData = await syncRes.json().catch(() => ({}));
+                                    console.error("Sync Failed:", errData);
+                                    throw new Error("DB Sync Failed: " + (errData.error || syncRes.statusText));
+                                }
+
+                                const savedOrder = await syncRes.json();
+                                console.log("✅ Order Synced to DB:", savedOrder);
+                            } else {
+                                console.warn("Could not find created Order object in transaction changes.");
+                            }
+
+                            // Force refetch to update UI
+                            refetch();
+                        } catch (e) {
+                             console.error("Wait/Sync error", e);
+                             addToast("Transaction confirmed but sync failed.", "warning");
+                        }
                     },
                     onError: (err) => {
                         console.error(err);
-                        alert("Transaction failed: " + err.message);
-                        setBuyingId(null);
+                        addToast("Transaction failed: " + err.message, "error");
                     },
                 }
             );
 
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error(e);
-            alert("Error: " + e.message);
-            setBuyingId(null);
+            const msg = e instanceof Error ? e.message : "Unknown error";
+            addToast("Error: " + msg, "error");
         }
     };
 
     if (isLoading) return <div className={styles.loading}>Loading market data...</div>;
-    if (error) return <div className={styles.error}>Error loading products: {error.message}</div>;
+    // Just simpler error check
+    if (error) return <div className={styles.error}>Error loading products: {String(error)}</div>;
 
     return (
-        <div className={styles.container}>
+        <div className={`${styles.container} page-container`}>
+            <ToastContainer toasts={toasts} removeToast={removeToast} />
             <header className={styles.header}>
                 <h1 className={styles.title}>Marketplace</h1>
                 <p className={styles.subtitle}>Fresh products directly from verified farmers</p>
             </header>
 
             {products.length === 0 ? (
-                <div className={styles.empty}>No products found. Be the first farmer to list something!</div>
+                <div className={styles.emptyState}>
+                    <div className={styles.emptyIcon}>🌾</div>
+                    <h2 className={styles.emptyTitle}>No Products Available</h2>
+                    <p className={styles.emptyDescription}>
+                        The marketplace is currently empty. Be the first farmer to list your fresh produce!
+                    </p>
+                    <p className={styles.emptyHint}>
+                        Farmers can upload products from the <strong>Farmer Dashboard</strong>
+                    </p>
+                </div>
             ) : (
                 <div className={styles.grid}>
-                    {products.map((p: any) => (
-                        <ProductCard
-                            key={p.id}
-                            product={p}
-                            onBuy={handleBuy}
-                        />
+                    {products.map((p, index) => (
+                        <div key={p.id} className="stagger-item" style={{ animationDelay: `${index * 0.05}s` }}>
+                            <ProductCard
+                                product={p}
+                                onBuy={handleBuy}
+                            />
+                        </div>
                     ))}
                 </div>
             )}

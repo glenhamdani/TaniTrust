@@ -65,7 +65,105 @@
 .productItem {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     padding: 1rem;
     border: 1px solid #e5e7eb;
     border-radius: 0.5rem;
+    transition: all 0.2s;
+}
+
+.productItem:hover {
+    border-color: #166534;
+    box-shadow: 0 2px 8px rgba(22, 101, 52, 0.1);
+}
+
+.productDetails {
+    flex: 1;
+}
+
+.productMeta {
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.productActions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.productPrice {
+    font-weight: 600;
+    color: #166534;
+    font-size: 1.1rem;
+}
+
+.actionButtons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.editBtn {
+    background-color: #166534;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.editBtn:hover:not(:disabled) {
+    background-color: #14532d;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.editBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.deleteBtn {
+    background-color: #dc2626;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.deleteBtn:hover:not(:disabled) {
+    background-color: #b91c1c;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.deleteBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Empty State */
+.emptyProducts {
+    text-align: center;
+    padding: 2rem;
+    color: #6b7280;
+}
+
+.emptyProducts p:first-child {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.emptyHint {
+    font-size: 0.9rem;
+    color: #9ca3af;
+    font-style: italic;
 }

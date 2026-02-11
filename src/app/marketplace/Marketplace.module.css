@@ -27,8 +27,7 @@
 }
 
 .loading,
-.error,
-.empty {
+.error {
     text-align: center;
     padding: 4rem;
     color: #6b7280;
@@ -37,4 +36,46 @@
 
 .error {
     color: #ef4444;
+}
+
+/* Empty State Styles */
+.emptyState {
+    text-align: center;
+    padding: 4rem 2rem;
+    max-width: 600px;
+    margin: 4rem auto;
+}
+
+.emptyIcon {
+    font-size: 5rem;
+    margin-bottom: 1.5rem;
+    opacity: 0.6;
+}
+
+.emptyTitle {
+    font-size: 2rem;
+    color: #111827;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.emptyDescription {
+    color: #6b7280;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.emptyHint {
+    color: #9ca3af;
+    font-size: 0.95rem;
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: #f9fafb;
+    border-radius: 8px;
+    border-left: 3px solid #166534;
+}
+
+.emptyHint strong {
+    color: #166534;
 }

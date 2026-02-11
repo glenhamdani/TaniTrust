@@ -36,9 +36,15 @@
   opacity: 0.9;
 }
 
-.links {
+.leftSection {
   display: flex;
-  gap: 2rem;
+  align-items: center;
+  gap: 3rem;
+}
+
+.navLinks {
+  display: flex;
+  gap: 1.5rem;
   align-items: center;
 }
 
@@ -53,9 +59,71 @@
   border-radius: 0.5rem;
 }
 
+
 .link:hover {
   color: #166534;
   /* Green-800 */
   background-color: #f0fdf4;
   /* Green-50 */
 }
+
+.balance {
+  font-weight: 600;
+  color: #166534; /* Green-800 */
+  background-color: #f0fdf4;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #dcfce7;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.faucetButton {
+  background-color: #ca8a04; /* Yellow-600 */
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 1rem;
+  transition: background-color 0.2s;
+}
+
+.faucetButton:hover {
+  background-color: #a16207; /* Yellow-700 */
+}
+
+
+.faucetButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.walletWrapper {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.refreshButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #166534;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  margin-left: 0.5rem;
+}
+
+.refreshButton:hover {
+  background-color: #dcfce7; /* Green-100 */
+  transform: rotate(180deg);
+}
+
+

@@ -1,0 +1,100 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  // Primary Key - menggunakan Object ID dari Sui Network
+  sui_object_id String   @id @db.VarChar(66)
+  
+  // Data dari Smart Contract
+  name          String   @db.VarChar(255)
+  price_per_unit BigInt  // u64 dari Move
+  stock         BigInt   // u64 dari Move
+  farmer_address String  @db.VarChar(66)
+  
+  // Data Off-chain (metadata)
+  image_url     String   @db.Text
+  image_cid     String?  @db.Text // IPFS CID
+  description   String   @db.Text
+  category      String   @db.VarChar(100)
+  
+  // Soft delete
+  is_deleted    Boolean  @default(false)
+  deleted_at    DateTime?
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Indexes untuk query optimization
+  @@index([farmer_address])
+  @@index([category])
+  @@index([createdAt(sort: Desc)])
+  @@index([is_deleted])
+
+  // Relation to Orders
+  orders        Order[]
+}
+
+model Order {
+  sui_object_id String   @id @db.VarChar(66)
+  product_id    String   @db.VarChar(66)
+  buyer         String   @db.VarChar(66)
+  farmer        String   @db.VarChar(66)
+  quantity      BigInt
+  total_price   BigInt
+  deadline      BigInt   // Timestamp ms
+  status        Int      // 1: Escrowed, 2: Completed, 3: Refunded, 4: Disputed
+  
+  // Relations
+  product       Product  @relation(fields: [product_id], references: [sui_object_id])
+  dispute       Dispute? 
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([buyer])
+  @@index([farmer])
+}
+
+model Dispute {
+  sui_object_id     String   @id @db.VarChar(66)
+  order_id          String   @unique @db.VarChar(66)
+  buyer             String   @db.VarChar(66)
+  farmer            String   @db.VarChar(66)
+  
+  farmer_percentage Int      @default(0)
+  buyer_percentage  Int      @default(0)
+  
+  // Turn-based negotiation tracking
+  last_proposer     String?  @db.VarChar(66) // Address of last person who proposed
+  proposal_count    Int      @default(0)     // Number of proposals made
+  
+  // Voting system (activated after 3+ proposals)
+  voting_enabled    Boolean  @default(false)
+  votes_for         Int      @default(0)
+  votes_against     Int      @default(0)
+  
+  status            Int      // 0: Pending, 1: Resolved
+  
+  // Soft delete (for cleanup after resolution)
+  is_deleted        Boolean  @default(false)
+  deleted_at        DateTime?
+
+  order             Order    @relation(fields: [order_id], references: [sui_object_id])
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([last_proposer])
+  @@index([voting_enabled])
+  @@index([is_deleted])
+}

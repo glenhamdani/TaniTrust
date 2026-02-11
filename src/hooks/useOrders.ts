@@ -1,49 +1,72 @@
-import { useCurrentAccount, useSuiClientQuery } from "@mysten/dapp-kit";
-import { CONSTANTS } from "@/lib/constants";
+import { useQuery } from "@tanstack/react-query";
+import { useCurrentAccount } from "@mysten/dapp-kit";
 
-export function useOrders() {
+export interface Order {
+    id: string; // sui_object_id
+    product_id: string;
+    buyer: string;
+    farmer: string;
+    quantity: string;
+    total_price: string;
+    deadline: string;
+    status: number; // 1: Escrowed, 2: Completed, etc.
+    product?: {
+        name: string;
+        image_url: string;
+    };
+    dispute?: {
+        sui_object_id: string;
+        status: number;
+        farmer_percentage: number;
+        buyer_percentage: number;
+        last_proposer?: string | null;
+        proposal_count?: number;
+        voting_enabled?: boolean;
+        votes_for?: number;
+        votes_against?: number;
+    };
+    createdAt: string;
+}
+
+export function useOrders(params?: { buyer?: string; farmer?: string }) {
     const account = useCurrentAccount();
-
-    // 1. Get owned objects of type "Order"
-    const { data: ownedObjects, isPending: isOwnedLoading, error: ownedError, refetch } = useSuiClientQuery(
-        "getOwnedObjects",
-        {
-            owner: account?.address || "",
-            filter: {
-                StructType: `${CONSTANTS.PACKAGE_ID}::${CONSTANTS.MARKETPLACE_MODULE}::Order`,
-            },
-            options: {
-                showContent: true,
-            },
+    
+    // Determine query parameter
+    const queryParam = params?.buyer 
+        ? `buyer=${params.buyer}` 
+        : params?.farmer 
+        ? `farmer=${params.farmer}` 
+        : account?.address 
+        ? `buyer=${account.address}` 
+        : '';
+    
+    const { data: orders, isLoading, error, refetch } = useQuery({
+        queryKey: ["orders", queryParam],
+        queryFn: async () => {
+            if (!queryParam) return [];
+            
+            const res = await fetch(`/api/orders?${queryParam}`);
+            if (!res.ok) {
+                throw new Error("Failed to fetch orders");
+            }
+            const data = await res.json();
+            
+            // Map DB structure to frontend structure expected by UI (if needed)
+            // Currently UI expects: id, status, deadline, total_price, quantity
+            return (data.orders || []).map((o: any) => ({
+                id: o.sui_object_id,
+                ...o
+            })) as Order[];
         },
-        {
-            enabled: !!account,
-        }
-    );
-
-    // 2. Parse data
-    const orders = ownedObjects?.data?.map((obj) => {
-        const content = obj.data?.content as any;
-        if (!content || content.dataType !== "moveObject") return null;
-
-        const fields = content.fields;
-        return {
-            id: obj.data?.objectId,
-            product_id: fields.product_id,
-            buyer: fields.buyer,
-            farmer: fields.farmer,
-            quantity: BigInt(fields.quantity),
-            total_price: BigInt(fields.total_price),
-            deadline: BigInt(fields.deadline),
-            status: Number(fields.status),
-            // We don't display balance detail here usually, just total_price
-        };
-    }).filter((o) => o !== null && o.id !== "") as { id: string; product_id: any; buyer: any; farmer: any; quantity: bigint; total_price: bigint; deadline: bigint; status: number }[];
+        enabled: !!queryParam,
+        refetchInterval: 5000, // Auto-refetch every 5 seconds
+        refetchIntervalInBackground: false, // Only refetch when tab is active
+    });
 
     return {
-        orders,
-        isLoading: isOwnedLoading,
-        error: ownedError,
-        refetch,
+        orders: orders || [],
+        isLoading: isLoading && !!queryParam,
+        error,
+        refetch
     };
 }
