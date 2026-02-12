@@ -27,12 +27,15 @@ interface ProductMetadata {
     fulfillment_time: string;
 }
 
-export function useProducts() {
+export function useProducts(category?: string) {
     // 1. Fetch metadata from Database API (for images, descriptions)
     const { data: apiData, isLoading: isApiLoading, refetch: refetchApi } = useQuery({
-        queryKey: ["products-metadata"],
+        queryKey: ["products-metadata", category],
         queryFn: async () => {
-            const res = await fetch("/api/products?limit=100");
+            const params = new URLSearchParams({ limit: "100" });
+            if (category) params.append("category", category);
+
+            const res = await fetch(`/api/products?${params.toString()}`);
             if (!res.ok) throw new Error("Failed to fetch products from API");
             return res.json();
         }
@@ -58,7 +61,7 @@ export function useProducts() {
         }
     );
 
-        // 4. Merge Data: Base is API data, override with Blockchain data if available
+    // 4. Merge Data: Base is API data, override with Blockchain data if available
     const products = productsMetadata.map((meta) => {
         // Find corresponding blockchain object
         const blockchainObj = objectsData?.find(

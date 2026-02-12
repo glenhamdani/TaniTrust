@@ -6,21 +6,53 @@ import styles from "./Marketplace.module.css";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { CONSTANTS } from "@/lib/constants";
-
 import { useToast, ToastContainer } from "@/components/Toast";
+import { BuyQuantityModal } from "@/components/BuyQuantityModal";
+import { useState } from "react";
+import { PRODUCT_CATEGORIES } from "@/types/product";
 
 export default function Marketplace() {
-    const { products, isLoading, error, refetch } = useProducts();
+    const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+    const { products, isLoading, error, refetch } = useProducts(selectedCategory);
+
+    // ... existing hooks ...
     const { toasts, addToast, removeToast } = useToast();
     const account = useCurrentAccount();
     const client = useSuiClient();
     const { mutate: signAndExecute } = useSignAndExecuteTransaction();
 
-    const handleBuy = async (product: Product) => {
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    // ... existing handlers ...
+
+    // Filter Handler
+    const handleCategoryChange = (category: string | undefined) => {
+        setSelectedCategory(category);
+        // Optional: Reset pagination or scroll to top here if needed
+    };
+
+    // Open Modal
+    const handleBuyClick = (product: Product) => {
+        setSelectedProduct(product);
+        setIsBuyModalOpen(true);
+    };
+
+    // Close Modal
+    const handleCloseModal = () => {
+        setIsBuyModalOpen(false);
+        setSelectedProduct(null);
+    };
+
+    // Execute Transaction
+    const handleConfirmPurchase = async (product: Product, quantity: number) => {
         if (!account) {
             addToast("Please connect your wallet to buy items.", "warning");
             return;
         }
+
+        setIsProcessing(true);
 
         try {
             // 1. Fetch user's TATO coins
@@ -31,14 +63,15 @@ export default function Marketplace() {
 
             if (coins.length === 0) {
                 addToast("You don't have any TATO tokens! Use the faucet.", "error");
+                setIsProcessing(false);
                 return;
             }
 
             // 2. Prepare Transaction
             const tx = new Transaction();
 
-            // Calculate total price for 1 unit
-            const price = BigInt(product.price);
+            // Calculate total price for requested quantity
+            const price = BigInt(product.price) * BigInt(quantity);
 
             // Filter coins with balance > 0
             const validCoins = coins.filter(c => BigInt(c.balance) > BigInt(0));
@@ -58,22 +91,22 @@ export default function Marketplace() {
             const totalBalance = validCoins.reduce((acc, c) => acc + BigInt(c.balance), BigInt(0));
             if (totalBalance < price) {
                 addToast(`Insufficient TATO balance. Needed: ${Number(price) / 100_000_000}, Have: ${Number(totalBalance) / 100_000_000}`, "error");
+                setIsProcessing(false);
                 return;
             }
 
             // Split the exact amount for payment
-            const [coinToPay] = tx.splitCoins(paymentCoin, [price]); // quantity 1
+            const [coinToPay] = tx.splitCoins(paymentCoin, [price]);
 
             // 3. Call create_order
             const deadlineMinutes = product.fulfillment_time || 60;
             tx.moveCall({
                 target: `${CONSTANTS.PACKAGE_ID}::${CONSTANTS.MARKETPLACE_MODULE}::create_order`,
                 arguments: [
-                    tx.object(product.id),        // product
-                    tx.pure.u64(1),               // quantity (hardcoded 1 for now)
-                    // deadline_hours removed - auto calculated from product.fulfillment_time
-                    coinToPay,                    // payment
-                    tx.object(CONSTANTS.CLOCK_OBJECT), // clock 0x6
+                    tx.object(product.id),
+                    tx.pure.u64(quantity),
+                    coinToPay,
+                    tx.object(CONSTANTS.CLOCK_OBJECT),
                 ],
             });
 
@@ -86,9 +119,9 @@ export default function Marketplace() {
                     onSuccess: async (result) => {
                         console.log("Order created:", result);
                         addToast("Transaction sent. Waiting for confirmation...", "info");
+                        handleCloseModal(); // Close modal immediately on success
 
                         try {
-                            // Wait for transaction result WITH object changes
                             const resultObj = await client.waitForTransaction({
                                 digest: result.digest,
                                 options: {
@@ -112,10 +145,10 @@ export default function Marketplace() {
                                     product_id: product.id,
                                     buyer: account.address,
                                     farmer: product.farmer,
-                                    quantity: "1", // Hardcoded quantity for now
-                                    total_price: product.price.toString(),
-                                    deadline: (Date.now() + (deadlineMinutes * 60 * 60 * 1000)).toString(), // Est. Deadline from client clock (Hours)
-                                    status: 1 // Escrowed
+                                    quantity: quantity.toString(),
+                                    total_price: price.toString(),
+                                    deadline: (Date.now() + (deadlineMinutes * 60 * 60 * 1000)).toString(),
+                                    status: 1
                                 };
 
                                 const syncRes = await fetch('/api/orders/sync', {
@@ -127,25 +160,25 @@ export default function Marketplace() {
                                 if (!syncRes.ok) {
                                     const errData = await syncRes.json().catch(() => ({}));
                                     console.error("Sync Failed:", errData);
-                                    throw new Error("DB Sync Failed: " + (errData.error || syncRes.statusText));
+                                    throw new Error("DB Sync Failed");
                                 }
 
                                 const savedOrder = await syncRes.json();
                                 console.log("✅ Order Synced to DB:", savedOrder);
-                            } else {
-                                console.warn("Could not find created Order object in transaction changes.");
                             }
 
-                            // Force refetch to update UI
                             refetch();
                         } catch (e) {
                             console.error("Wait/Sync error", e);
                             addToast("Transaction confirmed but sync failed.", "warning");
+                        } finally {
+                            setIsProcessing(false);
                         }
                     },
                     onError: (err) => {
                         console.error(err);
                         addToast("Transaction failed: " + err.message, "error");
+                        setIsProcessing(false);
                     },
                 }
             );
@@ -154,12 +187,15 @@ export default function Marketplace() {
             console.error(e);
             const msg = e instanceof Error ? e.message : "Unknown error";
             addToast("Error: " + msg, "error");
+            setIsProcessing(false);
         }
     };
 
     if (isLoading) return <div className={styles.loading}>Loading market data...</div>;
     // Just simpler error check
     if (error) return <div className={styles.error}>Error loading products: {String(error)}</div>;
+
+
 
     return (
         <div className={`${styles.container} page-container`}>
@@ -168,6 +204,25 @@ export default function Marketplace() {
                 <h1 className={styles.title}>Marketplace</h1>
                 <p className={styles.subtitle}>Fresh products directly from verified farmers</p>
             </header>
+
+            {/* Category Filter */}
+            <div className={styles.filterBar}>
+                <button
+                    className={`${styles.filterBtn} ${!selectedCategory ? styles.active : ''}`}
+                    onClick={() => handleCategoryChange(undefined)}
+                >
+                    All
+                </button>
+                {PRODUCT_CATEGORIES.map((cat) => (
+                    <button
+                        key={cat}
+                        className={`${styles.filterBtn} ${selectedCategory === cat ? styles.active : ''}`}
+                        onClick={() => handleCategoryChange(cat)}
+                    >
+                        {cat}
+                    </button>
+                ))}
+            </div>
 
             {products.length === 0 ? (
                 <div className={styles.emptyState}>
@@ -186,12 +241,20 @@ export default function Marketplace() {
                         <div key={p.id} className="stagger-item" style={{ animationDelay: `${index * 0.05}s` }}>
                             <ProductCard
                                 product={p}
-                                onBuy={handleBuy}
+                                onBuy={handleBuyClick}
                             />
                         </div>
                     ))}
                 </div>
             )}
+
+            <BuyQuantityModal
+                isOpen={isBuyModalOpen}
+                product={selectedProduct}
+                onClose={handleCloseModal}
+                onConfirm={handleConfirmPurchase}
+                isLoading={isProcessing}
+            />
         </div>
     );
 }

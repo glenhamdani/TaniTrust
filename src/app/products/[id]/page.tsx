@@ -118,7 +118,7 @@ export default function ProductDetailPage() {
 
             // 3. Call create_order
             // Fulfillment time is now in Minutes (from ProductUploadForm)
-            const deadlineMinutes = Number(product.fulfillment_time) || 60; 
+            const deadlineMinutes = Number(product.fulfillment_time) || 60;
             tx.moveCall({
                 target: `${CONSTANTS.PACKAGE_ID}::${CONSTANTS.MARKETPLACE_MODULE}::create_order`,
                 arguments: [
@@ -224,7 +224,10 @@ export default function ProductDetailPage() {
 
             <div className={styles.content}>
                 <button onClick={() => router.back()} className={styles.backBtn}>
-                    ← Back to Marketplace
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="16" height="16">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                    </svg>
+                    Back to Marketplace
                 </button>
 
                 <div className={styles.productGrid}>
@@ -278,24 +281,26 @@ export default function ProductDetailPage() {
 
                         <div className={styles.actions}>
 
-                            <div className={styles.quantitySelector} style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <span className={styles.label}>Quantity:</span>
-                                <button
-                                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                    style={{ padding: '5px 10px', cursor: 'pointer' }}
-                                >-</button>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max={Number(product.stock)}
-                                    value={quantity}
-                                    onChange={(e) => setQuantity(Math.max(1, Math.min(Number(product.stock), Number(e.target.value))))}
-                                    style={{ width: '60px', textAlign: 'center', padding: '5px' }}
-                                />
-                                <button
-                                    onClick={() => setQuantity(Math.min(Number(product.stock), quantity + 1))}
-                                    style={{ padding: '5px 10px', cursor: 'pointer' }}
-                                >+</button>
+                            <div className={styles.quantityControl}>
+                                <span className={styles.quantityLabel}>Quantity</span>
+                                <div className={styles.quantityWrapper}>
+                                    <button
+                                        className={styles.quantityBtn}
+                                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                    >-</button>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max={Number(product.stock)}
+                                        value={quantity}
+                                        onChange={(e) => setQuantity(Math.max(1, Math.min(Number(product.stock), Number(e.target.value))))}
+                                        className={styles.quantityInput}
+                                    />
+                                    <button
+                                        className={styles.quantityBtn}
+                                        onClick={() => setQuantity(Math.min(Number(product.stock), quantity + 1))}
+                                    >+</button>
+                                </div>
                             </div>
 
                             <button
