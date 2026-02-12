@@ -15,12 +15,17 @@ export default function FarmerOrders() {
     const { toasts, addToast, removeToast } = useToast();
 
     // Use useState with lazy initialization for current time
-    const [currentTime] = useState(() => Date.now());
+    // Use useState with lazy initialization for current time
+    const [currentTime, setCurrentTime] = useState(() => Date.now());
 
-    // Update time when orders change
+    // Update time every second to check for expiration in real-time
     useEffect(() => {
-        // Time is checked when component mounts and when orders update
-    }, [orders]);
+        const interval = setInterval(() => {
+            setCurrentTime(Date.now());
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     return (
         <WalletGuard>

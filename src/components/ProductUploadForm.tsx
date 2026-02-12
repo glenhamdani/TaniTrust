@@ -17,7 +17,7 @@ export function ProductUploadForm({ onSuccess, onError }: ProductUploadFormProps
     name: "",
     price_per_unit: "",
     stock: "",
-    fulfillment_time: "24",
+    fulfillment_time: "1",
     description: "",
     category: "Vegetables",
     image: null as File | null,
@@ -63,7 +63,7 @@ export function ProductUploadForm({ onSuccess, onError }: ProductUploadFormProps
         name: "",
         price_per_unit: "",
         stock: "",
-        fulfillment_time: "24",
+        fulfillment_time: "1",
         description: "",
         category: "Vegetables",
         image: null,
@@ -178,7 +178,7 @@ export function ProductUploadForm({ onSuccess, onError }: ProductUploadFormProps
           required
           disabled={isUploading}
           min="1"
-          placeholder="24"
+          placeholder="1"
         />
       </div>
 

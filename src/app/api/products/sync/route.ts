@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         price_per_unit: BigInt(price_per_unit),
         stock: BigInt(stock),
         farmer_address,
-        fulfillment_time: BigInt(fulfillment_time || 24),
+        fulfillment_time: BigInt(fulfillment_time || 60),
         image_url,
         image_cid,
         description,
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
         price_per_unit: BigInt(price_per_unit),
         stock: BigInt(stock),
         farmer_address,
-        fulfillment_time: BigInt(fulfillment_time || 24),
+        fulfillment_time: BigInt(fulfillment_time || 60),
         image_url,
         image_cid,
         description,
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       ...product,
       price_per_unit: product.price_per_unit.toString(),
       stock: product.stock.toString(),
-      fulfillment_time: (product.fulfillment_time || BigInt(24)).toString(),
+      fulfillment_time: (product.fulfillment_time || BigInt(60)).toString(),
     };
 
     return NextResponse.json({

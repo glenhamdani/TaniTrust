@@ -33,6 +33,7 @@ export interface ProductSyncRequest {
   image_cid?: string;
   description: string;
   category: string;
+  fulfillment_time?: number | string;
 }
 
 // Product List Response

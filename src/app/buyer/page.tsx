@@ -15,6 +15,7 @@ import { useCurrentAccount } from "@mysten/dapp-kit";
 import { DisputeSection } from "@/components/DisputeSection";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useState, useEffect } from "react";
+import { resolveIpfsUrl } from "@/lib/ipfs";
 
 export default function BuyerDashboard() {
     const { orders, isLoading, refetch } = useOrders();
@@ -26,7 +27,7 @@ export default function BuyerDashboard() {
     const client = useSuiClient();
 
     // Use useState with lazy initialization for current time
-    const [currentTime] = useState(() => Date.now());
+    const [currentTime, setCurrentTime] = useState(() => Date.now());
 
     // Modal state for dispute confirmation
     const [disputeModal, setDisputeModal] = useState<{ isOpen: boolean; orderId: string; farmerId: string }>({
@@ -35,10 +36,14 @@ export default function BuyerDashboard() {
         farmerId: ""
     });
 
-    // Update time when orders change
+    // Update time every second to check for expiration in real-time
     useEffect(() => {
-        // Time is checked when component mounts and when orders update
-    }, [orders]);
+        const interval = setInterval(() => {
+            setCurrentTime(Date.now());
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     const handleConfirmDelivery = async (orderId: string) => {
         const tx = new Transaction();
@@ -90,10 +95,28 @@ export default function BuyerDashboard() {
     const handleRefund = async (orderId: string) => {
         try {
             await processExpiredOrder(orderId);
+            
+            // Sync status '3' (Refunded/Cancelled) to DB
+            await fetch('/api/orders/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sui_object_id: orderId,
+                    status: 3 
+                })
+            });
+
             addToast("Refund successful! Funds returned to your wallet.", "success");
             refetch();
-        } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : "Unknown error";
+        } catch (e: any) {
+            console.error(e);
+            let msg = e.message || "Unknown error";
+            
+            // Explicitly catch the MoveAbort 5 error if it bubbled up raw
+            if (msg.includes("MoveAbort") && msg.includes("5)")) {
+                msg = "Order has not expired on-chain yet! Wait for the full duration (likely minutes vs hours mismatch).";
+            }
+            
             addToast("Refund failed: " + msg, "error");
         }
     };
@@ -193,7 +216,7 @@ export default function BuyerDashboard() {
                                             paddingBottom: '16px',
                                             borderBottom: '1px solid #f3f4f6'
                                         }}>
-                                            {order.product.image_url && (
+                                            {resolveIpfsUrl(order.product.image_url) && (
                                                 <div style={{
                                                     position: 'relative',
                                                     width: '60px',
@@ -204,11 +227,12 @@ export default function BuyerDashboard() {
                                                     border: '2px solid #e5e7eb'
                                                 }}>
                                                     <Image
-                                                        src={order.product.image_url}
+                                                        src={resolveIpfsUrl(order.product.image_url)}
                                                         alt={order.product.name}
                                                         fill
                                                         sizes="60px"
                                                         style={{ objectFit: 'cover' }}
+                                                        unoptimized={true}
                                                     />
                                                 </div>
                                             )}
@@ -238,7 +262,8 @@ export default function BuyerDashboard() {
                                         </div>
                                         <span className={styles.status}>
                                             {Number(order.status) === 1 ? "In Escrow" :
-                                                Number(order.status) === 2 ? "Transaction completed" : "Unknown"}
+                                             Number(order.status) === 2 ? "Transaction completed" : 
+                                             Number(order.status) === 3 ? "Refunded" : "Unknown"}
                                         </span>
                                         {isExpired && Number(order.status) === 1 && (
                                             <div style={{ color: '#e74c3c', fontSize: '0.8rem', marginTop: '4px', fontWeight: 'bold' }}>

@@ -5,6 +5,8 @@ import NextImage from "next/image";
 import Link from "next/link";
 import { Product } from "@/hooks/useProducts";
 
+import { resolveIpfsUrl } from "@/lib/ipfs";
+
 interface ProductCardProps {
     product: Product & { imageUrl?: string }; // Make strict
     onBuy: (product: Product) => void;
@@ -17,18 +19,21 @@ export function ProductCard({ product, onBuy }: ProductCardProps) {
         return p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
 
+    const imageUrl = resolveIpfsUrl(product.imageUrl);
+
     return (
         <Link href={`/products/${product.id}`} className={styles.cardLink}>
             <div className={styles.card}>
                 <div className={styles.imageContainer}>
-                    {product.imageUrl ? (
+                    {imageUrl ? (
                         <div className={styles.imageWrapper}>
                             <NextImage
-                                src={product.imageUrl}
+                                src={imageUrl}
                                 alt={product.name}
                                 fill
                                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                 className={styles.productImage}
+                                unoptimized={true} // Bypass Next.js optimization to avoid server-side rate limits
                             />
                         </div>
                     ) : (

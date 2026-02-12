@@ -7,6 +7,8 @@ import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@
 import { Transaction } from "@mysten/sui/transactions";
 import { CONSTANTS } from "@/lib/constants";
 import { useToast, ToastContainer } from "@/components/Toast";
+import { resolveIpfsUrl } from "@/lib/ipfs";
+
 import styles from "./page.module.css";
 
 // Interface matching API response
@@ -55,7 +57,7 @@ export default function ProductDetailPage() {
         if (params.id) {
             fetchProduct();
         }
-    }, [params.id]);
+    }, [params.id, addToast]);
 
     // Need client and signAndExecute for transaction
     const client = useSuiClient();
@@ -115,15 +117,16 @@ export default function ProductDetailPage() {
             const [coinToPay] = tx.splitCoins(paymentCoin, [price]);
 
             // 3. Call create_order
-            const deadlineHours = Number(product.fulfillment_time) || 24;
+            // Fulfillment time is now in Minutes (from ProductUploadForm)
+            const deadlineMinutes = Number(product.fulfillment_time) || 60; 
             tx.moveCall({
                 target: `${CONSTANTS.PACKAGE_ID}::${CONSTANTS.MARKETPLACE_MODULE}::create_order`,
                 arguments: [
                     tx.object(product.sui_object_id),        // product
                     tx.pure.u64(quantity),                   // quantity
-                    tx.pure.u64(deadlineHours),   // deadline_hours
-                    coinToPay,                    // payment
-                    tx.object(CONSTANTS.CLOCK_OBJECT), // clock 0x6
+                    // deadline is auto-calculated by contract based on product.fulfillment_time
+                    coinToPay,                               // payment
+                    tx.object(CONSTANTS.CLOCK_OBJECT),       // clock 0x6
                 ],
             });
 
@@ -151,6 +154,7 @@ export default function ProductDetailPage() {
                             addToast("✅ Order successful! Syncing...", "success");
 
                             // Find the created Order object ID
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             const orderChange = resultObj.objectChanges?.find((c: any) =>
                                 c.type === 'created' && c.objectType.includes("::Order")
                             );
@@ -164,7 +168,7 @@ export default function ProductDetailPage() {
                                     farmer: product.farmer_address,
                                     quantity: quantity.toString(),
                                     total_price: price.toString(),
-                                    deadline: (Date.now() + (deadlineHours * 60 * 60 * 1000)).toString(), // Est. Deadline from client clock
+                                    deadline: (Date.now() + (deadlineMinutes * 60 * 60 * 1000)).toString(),  // Est. Deadline from client clock (Hours)
                                     status: 1 // Escrowed
                                 };
 
@@ -228,7 +232,7 @@ export default function ProductDetailPage() {
                     <div className={styles.imageContainer}>
                         <div className={styles.imageWrapper}>
                             <Image
-                                src={product.image_url}
+                                src={resolveIpfsUrl(product.image_url)}
                                 alt={product.name}
                                 fill
                                 style={{ objectFit: "cover" }}
@@ -256,7 +260,7 @@ export default function ProductDetailPage() {
                                 <span className={styles.value}>{Number(product.stock).toLocaleString()}</span>
                             </div>
                             <div className={styles.infoItem}>
-                                <span className={styles.label}>Fulfillment</span>
+                                <span className={styles.label}>Fulfillment (Hours)</span>
                                 <span className={styles.value}>{product.fulfillment_time} hours</span>
                             </div>
                             <div className={styles.infoItem}>

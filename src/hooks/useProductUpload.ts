@@ -65,6 +65,7 @@ export function useProductUpload() {
           tx.pure.string(formData.name),
           tx.pure.u64(formData.price_per_unit), // Already converted to MIST in form
           tx.pure.u64(formData.stock),
+          tx.pure.u64(formData.fulfillment_time), // Now stored in product
         ],
       });
 

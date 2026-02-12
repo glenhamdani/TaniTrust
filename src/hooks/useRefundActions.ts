@@ -35,6 +35,13 @@ export function useRefundActions() {
             return { success: true, digest };
         } catch (error: any) {
             console.error("Refund error:", error);
+            const msg = error.message || String(error);
+            
+            // Check for MoveAbort code 5 (EOrderNotExpired)
+            if (msg.includes("MoveAbort") && msg.includes("5)")) {
+                throw new Error("Order has not expired on-chain yet! The contract may be using Hours instead of Minutes.");
+            }
+            
             throw error;
         } finally {
             setIsProcessing(false);

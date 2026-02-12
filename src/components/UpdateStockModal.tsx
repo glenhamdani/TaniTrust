@@ -10,6 +10,7 @@ interface UpdateStockModalProps {
   currentStock: number;
   onClose: () => void;
   onSuccess: () => void;
+  onError: (message: string) => void;
 }
 
 export function UpdateStockModal({
@@ -18,6 +19,7 @@ export function UpdateStockModal({
   currentStock,
   onClose,
   onSuccess,
+  onError,
 }: UpdateStockModalProps) {
   const [newStock, setNewStock] = useState(currentStock.toString());
   const { updateStock, isUpdating } = useUpdateStock();
@@ -27,17 +29,17 @@ export function UpdateStockModal({
 
     const stockValue = parseInt(newStock);
     if (isNaN(stockValue) || stockValue < 0) {
-      alert("Please enter a valid stock number");
+      onError("Please enter a valid stock number");
       return;
     }
 
     try {
       await updateStock(productId, stockValue);
-      alert("Stock updated successfully!");
+      // Success is handled by parent via onSuccess
       onSuccess();
       onClose();
     } catch (error) {
-      alert(`Failed to update stock: ${error instanceof Error ? error.message : "Unknown error"}`);
+      onError(`Failed to update stock: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 

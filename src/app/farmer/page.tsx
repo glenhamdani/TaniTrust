@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import styles from "./farmer.module.css";
@@ -14,6 +14,7 @@ import { useDeleteProduct } from "@/hooks/useDeleteProduct";
 import { useToast, ToastContainer } from "@/components/Toast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { DisputeSection } from "@/components/DisputeSection";
+import { resolveIpfsUrl } from "@/lib/ipfs";
 
 export default function FarmerDashboard() {
     const account = useCurrentAccount();
@@ -23,7 +24,17 @@ export default function FarmerDashboard() {
     const { toasts, addToast, removeToast } = useToast();
     
     // Current time for expiry check
-    const [currentTime] = useState(() => Date.now());
+    // Current time for expiry check
+    const [currentTime, setCurrentTime] = useState(() => Date.now());
+
+    // Update time every second to check for expiration in real-time
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTime(Date.now());
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
     
     // Modal state
     const [editingProduct, setEditingProduct] = useState<{
@@ -116,11 +127,12 @@ export default function FarmerDashboard() {
                                             {p.imageUrl && (
                                                 <div style={{ position: "relative", width: 40, height: 40, borderRadius: 4, overflow: "hidden", flexShrink: 0 }}>
                                                     <Image 
-                                                        src={p.imageUrl} 
+                                                        src={resolveIpfsUrl(p.imageUrl)} 
                                                         alt={p.name} 
                                                         fill 
                                                         sizes="40px"
                                                         style={{ objectFit: 'cover' }} 
+                                                        unoptimized={true}
                                                     />
                                                 </div>
                                             )}
@@ -206,11 +218,12 @@ export default function FarmerDashboard() {
                                                         border: '2px solid #e5e7eb'
                                                     }}>
                                                         <Image 
-                                                            src={order.product.image_url} 
+                                                            src={resolveIpfsUrl(order.product.image_url)} 
                                                             alt={order.product.name} 
                                                             fill 
                                                             sizes="60px"
                                                             style={{ objectFit: 'cover' }} 
+                                                            unoptimized={true}
                                                         />
                                                     </div>
                                                 )}
@@ -272,6 +285,35 @@ export default function FarmerDashboard() {
                                                     ⚠️ Dispute Active
                                                 </span>
                                             )}
+                                            {Number(order.status) === 2 && (
+                                                <span style={{ 
+                                                    display: 'inline-block',
+                                                    marginTop: '8px',
+                                                    padding: '4px 12px',
+                                                    backgroundColor: '#d1fae5',
+                                                    color: '#065f46',
+                                                    borderRadius: '12px',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: '600'
+                                                }}>
+                                                    ✅ Completed
+                                                </span>
+                                            )}
+                                            {Number(order.status) === 3 && (
+                                                <span style={{ 
+                                                    display: 'inline-block',
+                                                    marginTop: '8px',
+                                                    padding: '4px 12px',
+                                                    backgroundColor: '#f3f4f6',
+                                                    color: '#374151',
+                                                    borderRadius: '12px',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: '600',
+                                                    border: '1px solid #d1d5db'
+                                                }}>
+                                                    ↩️ Refunded
+                                                </span>
+                                            )}
                                         </div>
 
                                         {/* Dispute Section */}
@@ -317,6 +359,7 @@ export default function FarmerDashboard() {
                     currentStock={editingProduct.stock}
                     onClose={handleCloseModal}
                     onSuccess={handleUpdateSuccess}
+                    onError={(msg) => addToast(msg, "error")}
                 />
             )}
 

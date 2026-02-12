@@ -18,7 +18,7 @@ export default function Marketplace() {
 
     const handleBuy = async (product: Product) => {
         if (!account) {
-            alert("Please connect your wallet to buy items.");
+            addToast("Please connect your wallet to buy items.", "warning");
             return;
         }
 
@@ -30,7 +30,7 @@ export default function Marketplace() {
             });
 
             if (coins.length === 0) {
-                alert("You don't have any TATO tokens! Use the faucet.");
+                addToast("You don't have any TATO tokens! Use the faucet.", "error");
                 return;
             }
 
@@ -57,7 +57,7 @@ export default function Marketplace() {
             // Verify balance (client side check)
             const totalBalance = validCoins.reduce((acc, c) => acc + BigInt(c.balance), BigInt(0));
             if (totalBalance < price) {
-                alert(`Insufficient TATO balance. Needed: ${Number(price) / 100_000_000}, Have: ${Number(totalBalance) / 100_000_000}`);
+                addToast(`Insufficient TATO balance. Needed: ${Number(price) / 100_000_000}, Have: ${Number(totalBalance) / 100_000_000}`, "error");
                 return;
             }
 
@@ -65,13 +65,13 @@ export default function Marketplace() {
             const [coinToPay] = tx.splitCoins(paymentCoin, [price]); // quantity 1
 
             // 3. Call create_order
-            const deadlineHours = product.fulfillment_time || 24;
+            const deadlineMinutes = product.fulfillment_time || 60;
             tx.moveCall({
                 target: `${CONSTANTS.PACKAGE_ID}::${CONSTANTS.MARKETPLACE_MODULE}::create_order`,
                 arguments: [
                     tx.object(product.id),        // product
                     tx.pure.u64(1),               // quantity (hardcoded 1 for now)
-                    tx.pure.u64(deadlineHours),   // deadline_hours
+                    // deadline_hours removed - auto calculated from product.fulfillment_time
                     coinToPay,                    // payment
                     tx.object(CONSTANTS.CLOCK_OBJECT), // clock 0x6
                 ],
@@ -114,7 +114,7 @@ export default function Marketplace() {
                                     farmer: product.farmer,
                                     quantity: "1", // Hardcoded quantity for now
                                     total_price: product.price.toString(),
-                                    deadline: (Date.now() + (deadlineHours * 60 * 60 * 1000)).toString(), // Est. Deadline from client clock
+                                    deadline: (Date.now() + (deadlineMinutes * 60 * 60 * 1000)).toString(), // Est. Deadline from client clock (Hours)
                                     status: 1 // Escrowed
                                 };
 

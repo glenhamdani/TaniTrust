@@ -58,7 +58,7 @@ export function useProducts() {
         }
     );
 
-    // 4. Merge Data: Base is API data, override with Blockchain data if available
+        // 4. Merge Data: Base is API data, override with Blockchain data if available
     const products = productsMetadata.map((meta) => {
         // Find corresponding blockchain object
         const blockchainObj = objectsData?.find(
@@ -78,9 +78,22 @@ export function useProducts() {
             }
         }
 
-        // Jika data di blockchain tidak ditemukan (mungkin dihapus/archiv), kita bisa skip atau tandai.
-        // Untuk sekarang, kita tetap tampilkan dari database tapi dengan stok 0 jika tidak ada di chain.
-        // TAPI: Jika blockchainData ada, kita pakai stok & harga dari sana (Source of Truth).
+        // Determine stock & price
+        // Default to DB data
+        let stock = BigInt(meta.stock);
+        let price = BigInt(meta.price_per_unit);
+
+        // If blockchain data is loaded (not loading/error), use it as source of truth
+        if (objectsData) {
+            if (blockchainData) {
+                stock = BigInt(blockchainData.stock);
+                price = BigInt(blockchainData.price);
+            } else {
+                // If we have chain data but this object is missing/deleted/invalid on chain,
+                // treat it as deleted (stock 0).
+                stock = BigInt(0);
+            }
+        }
 
         return {
             id: meta.sui_object_id,          // Gunakan Sui Object ID sebagai ID utama di frontend
@@ -89,10 +102,10 @@ export function useProducts() {
             description: meta.description,   // Deskripsi dari DB
             imageUrl: meta.image_url,        // Gambar dari DB
             category: meta.category,         // Kategori dari DB
-            price: BigInt(blockchainData ? blockchainData.price : meta.price_per_unit), // Prioritas Chain
-            stock: BigInt(blockchainData ? blockchainData.stock : meta.stock),          // Prioritas Chain
+            price: price,                    // Prioritas Chain
+            stock: stock,                    // Prioritas Chain
             farmer: meta.farmer_address,
-            fulfillment_time: Number(meta.fulfillment_time || 24),
+            fulfillment_time: Number(meta.fulfillment_time || 60),
         };
     }).filter(p => p.stock > BigInt(0)); // Hanya tampilkan yang stok > 0 di Blockchain (atau DB jika chain gagal)
 
