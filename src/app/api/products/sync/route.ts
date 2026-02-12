@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
       image_cid,
       description,
       category,
+      fulfillment_time,
     } = body;
 
     // Validasi required fields
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
         price_per_unit: BigInt(price_per_unit),
         stock: BigInt(stock),
         farmer_address,
+        fulfillment_time: BigInt(fulfillment_time || 24),
         image_url,
         image_cid,
         description,
@@ -53,6 +55,7 @@ export async function POST(request: NextRequest) {
         price_per_unit: BigInt(price_per_unit),
         stock: BigInt(stock),
         farmer_address,
+        fulfillment_time: BigInt(fulfillment_time || 24),
         image_url,
         image_cid,
         description,
@@ -65,6 +68,7 @@ export async function POST(request: NextRequest) {
       ...product,
       price_per_unit: product.price_per_unit.toString(),
       stock: product.stock.toString(),
+      fulfillment_time: (product.fulfillment_time || BigInt(24)).toString(),
     };
 
     return NextResponse.json({
@@ -74,7 +78,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Product sync error:", error);
     return NextResponse.json(
-      { error: "Failed to sync product to database" },
+      {
+        error: "Failed to sync product to database",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }

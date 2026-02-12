@@ -10,5 +10,12 @@ if (!jwt) {
 // Initialize Pinata with JWT (safe fallback)
 export const pinata = new PinataSDK({
   pinataJwt: jwt || "",
-  pinataGateway: gateway || "gateway.pinata.cloud", 
+  pinataGateway: gateway || "gateway.pinata.cloud",
 });
+
+export const checkPinataConfig = () => {
+  if (!jwt) {
+    throw new Error("PINATA_JWT is missing from environment variables. Please add it to your .env file.");
+  }
+};
+

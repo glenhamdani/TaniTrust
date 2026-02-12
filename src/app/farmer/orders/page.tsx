@@ -13,10 +13,10 @@ export default function FarmerOrders() {
     const account = useCurrentAccount();
     const { orders, isLoading, refetch } = useOrders({ farmer: account?.address });
     const { toasts, addToast, removeToast } = useToast();
-    
+
     // Use useState with lazy initialization for current time
     const [currentTime] = useState(() => Date.now());
-    
+
     // Update time when orders change
     useEffect(() => {
         // Time is checked when component mounts and when orders update
@@ -42,13 +42,13 @@ export default function FarmerOrders() {
                     </div>
                 ) : (
                     <div className={styles.orderList}>
-                        {orders.map((order: { 
-                            id: string; 
-                            deadline: string; 
-                            total_price: string; 
-                            quantity: string; 
-                            status: number; 
-                            buyer: string; 
+                        {orders.map((order: {
+                            id: string;
+                            deadline: string;
+                            total_price: string;
+                            quantity: string;
+                            status: number;
+                            buyer: string;
                             dispute?: {
                                 sui_object_id: string;
                                 farmer_percentage: number;
@@ -74,9 +74,12 @@ export default function FarmerOrders() {
                                         </div>
                                         <div>Qty: {order.quantity}</div>
                                         <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                                            Expected arrival: {new Date(Number(order.deadline)).toLocaleString()}
+                                        </div>
+                                        <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
                                             Buyer: {order.buyer.slice(0, 6)}...{order.buyer.slice(-4)}
                                         </div>
-                                        
+
                                         {/* Status Badge */}
                                         {Number(order.status) === 1 && !hasDispute && (
                                             <span className={styles.status} style={{ backgroundColor: '#fef3c7', color: '#92400e' }}>
@@ -85,7 +88,7 @@ export default function FarmerOrders() {
                                         )}
                                         {Number(order.status) === 2 && (
                                             <span className={styles.status} style={{ backgroundColor: '#d1fae5', color: '#065f46' }}>
-                                                Completed
+                                                Transaction completed
                                             </span>
                                         )}
                                         {Number(order.status) === 3 && (
@@ -108,9 +111,9 @@ export default function FarmerOrders() {
                                     <div className={styles.actionArea}>
                                         {/* No action buttons for farmer - just view status */}
                                         {Number(order.status) === 1 && !hasDispute && !isExpired && (
-                                            <div style={{ 
-                                                padding: '12px 20px', 
-                                                backgroundColor: '#e0f2fe', 
+                                            <div style={{
+                                                padding: '12px 20px',
+                                                backgroundColor: '#e0f2fe',
                                                 borderRadius: '8px',
                                                 color: '#075985',
                                                 fontWeight: '500',
@@ -123,14 +126,14 @@ export default function FarmerOrders() {
 
                                     {/* Show Dispute Negotiation UI if dispute exists */}
                                     {hasDispute && (
-                                        <DisputeSection 
+                                        <DisputeSection
                                             order={{
                                                 id: order.id,
                                                 farmer: account?.address || '',
                                                 buyer: order.buyer,
                                                 dispute: order.dispute
-                                            }} 
-                                            onUpdate={refetch} 
+                                            }}
+                                            onUpdate={refetch}
                                         />
                                     )}
                                 </div>
@@ -138,8 +141,8 @@ export default function FarmerOrders() {
                         })}
                     </div>
                 )}
-                
-                <ToastContainer toasts={toasts} onRemove={removeToast} />
+
+                <ToastContainer toasts={toasts} removeToast={removeToast} />
             </div>
         </WalletGuard>
     );

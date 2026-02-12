@@ -24,23 +24,23 @@ export default function BuyerDashboard() {
     const { createDispute, isCreating: isDisputing } = useDisputeActions();
     const account = useCurrentAccount();
     const client = useSuiClient();
-    
+
     // Use useState with lazy initialization for current time
     const [currentTime] = useState(() => Date.now());
-    
+
     // Modal state for dispute confirmation
     const [disputeModal, setDisputeModal] = useState<{ isOpen: boolean; orderId: string; farmerId: string }>({
         isOpen: false,
         orderId: "",
         farmerId: ""
     });
-    
+
     // Update time when orders change
     useEffect(() => {
         // Time is checked when component mounts and when orders update
     }, [orders]);
 
-    const handleConfirmDelivery = (orderId: string) => {
+    const handleConfirmDelivery = async (orderId: string) => {
         const tx = new Transaction();
 
         tx.moveCall({
@@ -54,10 +54,30 @@ export default function BuyerDashboard() {
         signAndExecute(
             { transaction: tx },
             {
-                onSuccess: (result) => {
+                onSuccess: async (result) => {
                     console.log("Delivery confirmed:", result);
-                    addToast("Delivery confirmed! Funds released to farmer.", "success");
-                    refetch();
+                    addToast("Processing transaction...", "info");
+
+                    try {
+                        // Wait for transaction to be confirmed
+                        await client.waitForTransaction({ digest: result.digest });
+
+                        // Sync to DB
+                        await fetch('/api/orders/sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                sui_object_id: orderId,
+                                status: 2 // Transaction completed
+                            })
+                        });
+
+                        addToast("Transaction completed! Funds released to farmer.", "success");
+                        refetch();
+                    } catch (e) {
+                        console.error("Sync failed:", e);
+                        addToast("Transaction confirmed but failed to update status.", "error");
+                    }
                 },
                 onError: (e) => {
                     console.error("Confirm delivery failed:", e);
@@ -95,7 +115,7 @@ export default function BuyerDashboard() {
             addToast("Dispute transaction sent. Waiting for confirmation...", "info");
 
             // Wait for transaction result WITH object changes
-            const resultObj = await client.waitForTransaction({ 
+            const resultObj = await client.waitForTransaction({
                 digest,
                 options: {
                     showEffects: true,
@@ -124,7 +144,7 @@ export default function BuyerDashboard() {
                 addToast("Dispute raised successfully!", "success");
                 refetch();
             } else {
-                 addToast("Transaction confirmed, but failed to track dispute ID.", "info");
+                addToast("Transaction confirmed, but failed to track dispute ID.", "info");
             }
 
         } catch (e: unknown) {
@@ -157,121 +177,125 @@ export default function BuyerDashboard() {
                 ) : (
                     <div className={styles.orderList}>
                         {orders.map((order: Order, index: number) => {
-                             // Use state value for current time
-                             const isExpired = Number(order.deadline) < currentTime;
-                             const hasDispute = !!order.dispute;
-                             
-                             return (
-                            <div key={order.id} className={`${styles.orderCard} stagger-item`} style={{ animationDelay: `${index * 0.05}s` }}>
-                                {/* Product Info with Image */}
-                                {order.product && (
-                                    <div style={{ 
-                                        display: 'flex', 
-                                        alignItems: 'center', 
-                                        gap: '12px',
-                                        marginBottom: '16px',
-                                        paddingBottom: '16px',
-                                        borderBottom: '1px solid #f3f4f6'
-                                    }}>
-                                        {order.product.image_url && (
-                                            <div style={{ 
-                                                position: 'relative', 
-                                                width: '60px', 
-                                                height: '60px', 
-                                                borderRadius: '8px', 
-                                                overflow: 'hidden',
-                                                flexShrink: 0,
-                                                border: '2px solid #e5e7eb'
-                                            }}>
-                                                <Image 
-                                                    src={order.product.image_url} 
-                                                    alt={order.product.name} 
-                                                    fill 
-                                                    sizes="60px"
-                                                    style={{ objectFit: 'cover' }} 
-                                                />
+                            // Use state value for current time
+                            const isExpired = Number(order.deadline) < currentTime;
+                            const hasDispute = !!order.dispute;
+
+                            return (
+                                <div key={order.id} className={`${styles.orderCard} stagger-item`} style={{ animationDelay: `${index * 0.05}s` }}>
+                                    {/* Product Info with Image */}
+                                    {order.product && (
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '12px',
+                                            marginBottom: '16px',
+                                            paddingBottom: '16px',
+                                            borderBottom: '1px solid #f3f4f6'
+                                        }}>
+                                            {order.product.image_url && (
+                                                <div style={{
+                                                    position: 'relative',
+                                                    width: '60px',
+                                                    height: '60px',
+                                                    borderRadius: '8px',
+                                                    overflow: 'hidden',
+                                                    flexShrink: 0,
+                                                    border: '2px solid #e5e7eb'
+                                                }}>
+                                                    <Image
+                                                        src={order.product.image_url}
+                                                        alt={order.product.name}
+                                                        fill
+                                                        sizes="60px"
+                                                        style={{ objectFit: 'cover' }}
+                                                    />
+                                                </div>
+                                            )}
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{
+                                                    fontSize: '1.1rem',
+                                                    fontWeight: '600',
+                                                    color: '#1f2937',
+                                                    marginBottom: '4px'
+                                                }}>
+                                                    {order.product.name}
+                                                </div>
+                                                <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                                                    Order ID: {order.id.slice(0, 8)}...
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className={styles.orderInfo}>
+                                        <span className={styles.price}>
+                                            {Number(order.total_price) / 100_000_000} TATO
+                                        </span>
+                                        <div>Qty: {Number(order.quantity)}</div>
+                                        <div style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '4px' }}>
+                                            Expected arrival: {new Date(Number(order.deadline)).toLocaleString()}
+                                        </div>
+                                        <span className={styles.status}>
+                                            {Number(order.status) === 1 ? "In Escrow" :
+                                                Number(order.status) === 2 ? "Transaction completed" : "Unknown"}
+                                        </span>
+                                        {isExpired && Number(order.status) === 1 && (
+                                            <div style={{ color: '#e74c3c', fontSize: '0.8rem', marginTop: '4px', fontWeight: 'bold' }}>
+                                                ⚠️ Expired
                                             </div>
                                         )}
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ 
-                                                fontSize: '1.1rem', 
-                                                fontWeight: '600', 
-                                                color: '#1f2937',
-                                                marginBottom: '4px'
-                                            }}>
-                                                {order.product.name}
+                                        {hasDispute && (
+                                            <div style={{ color: '#f39c12', fontSize: '0.8rem', marginTop: '4px', fontWeight: 'bold' }}>
+                                                ⚖️ Dispute Active
                                             </div>
-                                            <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-                                                Order ID: {order.id.slice(0, 8)}...
-                                            </div>
-                                        </div>
+                                        )}
                                     </div>
-                                )}
 
-                                <div className={styles.orderInfo}>
-                                    <span className={styles.price}>
-                                        {Number(order.total_price) / 100_000_000} TATO
-                                    </span>
-                                    <div>Qty: {Number(order.quantity)}</div>
-                                    <span className={styles.status}>
-                                        {Number(order.status) === 1 ? "In Escrow" : 
-                                         Number(order.status) === 2 ? "Completed" : "Unknown"}
-                                    </span>
-                                    {isExpired && Number(order.status) === 1 && (
-                                        <div style={{color: '#e74c3c', fontSize: '0.8rem', marginTop: '4px', fontWeight: 'bold'}}>
-                                            ⚠️ Expired
-                                        </div>
-                                    )}
-                                    {hasDispute && (
-                                        <div style={{color: '#f39c12', fontSize: '0.8rem', marginTop: '4px', fontWeight: 'bold'}}>
-                                            ⚖️ Dispute Active
-                                        </div>
-                                    )}
-                                </div>
+                                    <div className={styles.actionArea}>
+                                        {/* Only show confirm button if status is Escrowed (1) AND NOT expired AND NO dispute */}
+                                        {Number(order.status) === 1 && !isExpired && !hasDispute && (
+                                            <>
+                                                <button
+                                                    className={styles.confirmBtn}
+                                                    onClick={() => handleConfirmDelivery(order.id)}
+                                                >
+                                                    Confirm Delivery
+                                                </button>
 
-                                <div className={styles.actionArea}>
-                                    {/* Only show confirm button if status is Escrowed (1) AND NOT expired AND NO dispute */}
-                                    {Number(order.status) === 1 && !isExpired && !hasDispute && (
-                                        <>
+                                                <button
+                                                    className={styles.disputeBtn}
+                                                    onClick={() => openDisputeModal(order.id, order.farmer)}
+                                                    disabled={isDisputing}
+                                                >
+                                                    {isDisputing ? "Processing..." : "Raise Dispute"}
+                                                </button>
+                                            </>
+                                        )}
+
+                                        {/* Show Refund button if Escrowed (1) AND Expired */}
+                                        {Number(order.status) === 1 && isExpired && !hasDispute && (
                                             <button
                                                 className={styles.confirmBtn}
-                                                onClick={() => handleConfirmDelivery(order.id)}
+                                                onClick={() => handleRefund(order.id)}
+                                                style={{ backgroundColor: '#e74c3c' }}
+                                                disabled={isRefunding}
                                             >
-                                                Confirm Delivery
+                                                {isRefunding ? "Processing..." : "Refund (Expired)"}
                                             </button>
-                                            
-                                            <button
-                                                className={styles.disputeBtn}
-                                                onClick={() => openDisputeModal(order.id, order.farmer)}
-                                                disabled={isDisputing}
-                                            >
-                                                {isDisputing ? "Processing..." : "Raise Dispute"}
-                                            </button>
-                                        </>
-                                    )}
+                                        )}
+                                    </div>
 
-                                    {/* Show Refund button if Escrowed (1) AND Expired */}
-                                    {Number(order.status) === 1 && isExpired && !hasDispute && (
-                                        <button
-                                            className={styles.confirmBtn} 
-                                            onClick={() => handleRefund(order.id)}
-                                            style={{ backgroundColor: '#e74c3c' }}
-                                            disabled={isRefunding}
-                                        >
-                                            {isRefunding ? "Processing..." : "Refund (Expired)"}
-                                        </button>
+                                    {/* Show Dispute Negotiation UI if dispute exists */}
+                                    {hasDispute && (
+                                        <DisputeSection order={order} onUpdate={refetch} />
                                     )}
                                 </div>
-
-                                {/* Show Dispute Negotiation UI if dispute exists */}
-                                {hasDispute && (
-                                    <DisputeSection order={order} onUpdate={refetch} />
-                                )}
-                            </div>
-                        )})}
+                            )
+                        })}
                     </div>
                 )}
-                
+
                 {/* Confirm Modal for Dispute */}
                 <ConfirmModal
                     isOpen={disputeModal.isOpen}

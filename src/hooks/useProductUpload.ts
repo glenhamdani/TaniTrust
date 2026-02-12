@@ -10,6 +10,7 @@ interface ProductFormData {
   name: string;
   price_per_unit: number;
   stock: number;
+  fulfillment_time: number;
   description: string;
   category: string;
   image: File | null;
@@ -53,7 +54,7 @@ export function useProductUpload() {
 
       // Step 2: Create product on blockchain
       setUploadProgress("Creating product on blockchain...");
-      
+
       const tx = new Transaction();
       const target = `${CONSTANTS.PACKAGE_ID}::${CONSTANTS.MARKETPLACE_MODULE}::upload_product`;
       console.log("🛠️ Calling Smart Contract:", target);
@@ -61,9 +62,9 @@ export function useProductUpload() {
       tx.moveCall({
         target: target,
         arguments: [
-            tx.pure.string(formData.name),
-            tx.pure.u64(formData.price_per_unit), // Already converted to MIST in form
-            tx.pure.u64(formData.stock),
+          tx.pure.string(formData.name),
+          tx.pure.u64(formData.price_per_unit), // Already converted to MIST in form
+          tx.pure.u64(formData.stock),
         ],
       });
 
@@ -92,16 +93,16 @@ export function useProductUpload() {
       if (result.effects?.created) {
         productObjectId = result.effects.created[0]?.reference?.objectId;
       }
-      
+
       // Fallback: Check objectChanges
       if (!productObjectId && result.objectChanges) {
         // Use 'any' for change to avoid complex type mismatches with SDK unions
         const createdChange = result.objectChanges.find(
-          (change: any) => 
-            change.type === "created" && 
+          (change: any) =>
+            change.type === "created" &&
             change.objectType?.includes("::Product")
         );
-        
+
         if (createdChange && "objectId" in createdChange) {
           productObjectId = createdChange.objectId;
         }
@@ -120,6 +121,7 @@ export function useProductUpload() {
         price_per_unit: formData.price_per_unit,
         stock: formData.stock,
         farmer_address: account.address,
+        fulfillment_time: formData.fulfillment_time,
         image_url: ipfsData.url,
         image_cid: ipfsData.cid,
         description: formData.description,
@@ -135,7 +137,8 @@ export function useProductUpload() {
       });
 
       if (!syncResponse.ok) {
-        throw new Error("Failed to sync product to database");
+        const errorData = await syncResponse.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || "Failed to sync product to database");
       }
 
       const syncResult = await syncResponse.json();

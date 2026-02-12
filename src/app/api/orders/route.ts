@@ -23,12 +23,18 @@ export async function GET(req: NextRequest) {
             }
         });
 
-        const serializedOrders = orders.map((order: Order & { product: Product | null; dispute: Dispute | null; }) => ({
-            ...order,
+        const serializedOrders = orders.map((order) => ({
+            sui_object_id: order.sui_object_id,
+            product_id: order.product_id,
+            buyer: order.buyer,
+            farmer: order.farmer,
             quantity: order.quantity.toString(),
             total_price: order.total_price.toString(),
             deadline: order.deadline.toString(),
             status: Number(order.status),
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt,
+            dispute: order.dispute,
             product: order.product ? {
                 sui_object_id: order.product.sui_object_id,
                 name: order.product.name,

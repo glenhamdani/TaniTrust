@@ -11,6 +11,7 @@ export interface Product {
     price: bigint;
     stock: bigint;
     farmer: string;
+    fulfillment_time: number;
 }
 
 interface ProductMetadata {
@@ -23,6 +24,7 @@ interface ProductMetadata {
     image_url: string;
     category: string;
     farmer_address: string;
+    fulfillment_time: string;
 }
 
 export function useProducts() {
@@ -79,7 +81,7 @@ export function useProducts() {
         // Jika data di blockchain tidak ditemukan (mungkin dihapus/archiv), kita bisa skip atau tandai.
         // Untuk sekarang, kita tetap tampilkan dari database tapi dengan stok 0 jika tidak ada di chain.
         // TAPI: Jika blockchainData ada, kita pakai stok & harga dari sana (Source of Truth).
-        
+
         return {
             id: meta.sui_object_id,          // Gunakan Sui Object ID sebagai ID utama di frontend
             db_id: meta.id,                  // Simpan DB ID jika perlu
@@ -90,6 +92,7 @@ export function useProducts() {
             price: BigInt(blockchainData ? blockchainData.price : meta.price_per_unit), // Prioritas Chain
             stock: BigInt(blockchainData ? blockchainData.stock : meta.stock),          // Prioritas Chain
             farmer: meta.farmer_address,
+            fulfillment_time: Number(meta.fulfillment_time || 24),
         };
     }).filter(p => p.stock > BigInt(0)); // Hanya tampilkan yang stok > 0 di Blockchain (atau DB jika chain gagal)
 

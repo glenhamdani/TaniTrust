@@ -19,6 +19,7 @@ model Product {
   price_per_unit BigInt  // u64 dari Move
   stock         BigInt   // u64 dari Move
   farmer_address String  @db.VarChar(66)
+  fulfillment_time BigInt @default(24) // u64 dari Move (hours)
   
   // Data Off-chain (metadata)
   image_url     String   @db.Text

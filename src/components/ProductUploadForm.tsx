@@ -17,6 +17,7 @@ export function ProductUploadForm({ onSuccess, onError }: ProductUploadFormProps
     name: "",
     price_per_unit: "",
     stock: "",
+    fulfillment_time: "24",
     description: "",
     category: "Vegetables",
     image: null as File | null,
@@ -40,7 +41,7 @@ export function ProductUploadForm({ onSuccess, onError }: ProductUploadFormProps
 
     try {
       if (!formData.image) {
-          throw new Error("Please select an image");
+        throw new Error("Please select an image");
       }
 
       const priceInMist = Math.floor(parseFloat(formData.price_per_unit) * 100_000_000);
@@ -49,18 +50,20 @@ export function ProductUploadForm({ onSuccess, onError }: ProductUploadFormProps
         name: formData.name,
         price_per_unit: priceInMist,
         stock: parseInt(formData.stock),
+        fulfillment_time: parseInt(formData.fulfillment_time),
         description: formData.description,
         category: formData.category,
         image: formData.image,
       });
 
       if (onSuccess) onSuccess(result.productId);
-      
+
       // Reset form
       setFormData({
         name: "",
         price_per_unit: "",
         stock: "",
+        fulfillment_time: "24",
         description: "",
         category: "Vegetables",
         image: null,
@@ -68,7 +71,7 @@ export function ProductUploadForm({ onSuccess, onError }: ProductUploadFormProps
       setImagePreview("");
       // Reset file input manually if needed via ref
       (document.getElementById('image') as HTMLInputElement).value = '';
-      
+
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Unknown error";
       if (onError) onError(msg);
@@ -90,12 +93,12 @@ export function ProductUploadForm({ onSuccess, onError }: ProductUploadFormProps
         />
         {imagePreview && (
           <div style={{ position: "relative", width: "100%", height: "200px", marginTop: "10px" }}>
-            <Image 
-              src={imagePreview} 
-              alt="Preview" 
-              fill 
-              style={{ objectFit: "contain" }} 
-              className={styles.preview} 
+            <Image
+              src={imagePreview}
+              alt="Preview"
+              fill
+              style={{ objectFit: "contain" }}
+              className={styles.preview}
             />
           </div>
         )}
@@ -164,6 +167,22 @@ export function ProductUploadForm({ onSuccess, onError }: ProductUploadFormProps
       </div>
 
       <div className={styles.formGroup}>
+        <label htmlFor="fulfillment_time">Fulfillment Time (Hours) *</label>
+        <input
+          type="number"
+          id="fulfillment_time"
+          value={formData.fulfillment_time}
+          onChange={(e) =>
+            setFormData({ ...formData, fulfillment_time: e.target.value })
+          }
+          required
+          disabled={isUploading}
+          min="1"
+          placeholder="24"
+        />
+      </div>
+
+      <div className={styles.formGroup}>
         <label htmlFor="description">Description *</label>
         <textarea
           id="description"
@@ -178,9 +197,11 @@ export function ProductUploadForm({ onSuccess, onError }: ProductUploadFormProps
         />
       </div>
 
-      {uploadProgress && (
-        <div className={styles.progress}>{uploadProgress}</div>
-      )}
+      {
+        uploadProgress && (
+          <div className={styles.progress}>{uploadProgress}</div>
+        )
+      }
 
       <button type="submit" disabled={isUploading} className={styles.submitBtn}>
         {isUploading ? "Uploading..." : "Upload Product"}

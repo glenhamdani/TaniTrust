@@ -65,12 +65,13 @@ export default function Marketplace() {
             const [coinToPay] = tx.splitCoins(paymentCoin, [price]); // quantity 1
 
             // 3. Call create_order
+            const deadlineHours = product.fulfillment_time || 24;
             tx.moveCall({
                 target: `${CONSTANTS.PACKAGE_ID}::${CONSTANTS.MARKETPLACE_MODULE}::create_order`,
                 arguments: [
                     tx.object(product.id),        // product
                     tx.pure.u64(1),               // quantity (hardcoded 1 for now)
-                    tx.pure.u64(24),              // deadline_hours
+                    tx.pure.u64(deadlineHours),   // deadline_hours
                     coinToPay,                    // payment
                     tx.object(CONSTANTS.CLOCK_OBJECT), // clock 0x6
                 ],
@@ -85,10 +86,10 @@ export default function Marketplace() {
                     onSuccess: async (result) => {
                         console.log("Order created:", result);
                         addToast("Transaction sent. Waiting for confirmation...", "info");
-                        
+
                         try {
                             // Wait for transaction result WITH object changes
-                            const resultObj = await client.waitForTransaction({ 
+                            const resultObj = await client.waitForTransaction({
                                 digest: result.digest,
                                 options: {
                                     showEffects: true,
@@ -96,11 +97,11 @@ export default function Marketplace() {
                                     showEvents: true
                                 }
                             });
-                            
+
                             addToast("✅ Order successful! Syncing...", "success");
 
                             // Find the created Order object ID
-                            const orderChange = resultObj.objectChanges?.find((c: any) => 
+                            const orderChange = resultObj.objectChanges?.find((c: any) =>
                                 c.type === 'created' && c.objectType.includes("::Order")
                             );
 
@@ -113,7 +114,7 @@ export default function Marketplace() {
                                     farmer: product.farmer,
                                     quantity: "1", // Hardcoded quantity for now
                                     total_price: product.price.toString(),
-                                    deadline: (Date.now() + (24 * 60 * 60 * 1000)).toString(), // Est. Deadline from client clock
+                                    deadline: (Date.now() + (deadlineHours * 60 * 60 * 1000)).toString(), // Est. Deadline from client clock
                                     status: 1 // Escrowed
                                 };
 
@@ -138,8 +139,8 @@ export default function Marketplace() {
                             // Force refetch to update UI
                             refetch();
                         } catch (e) {
-                             console.error("Wait/Sync error", e);
-                             addToast("Transaction confirmed but sync failed.", "warning");
+                            console.error("Wait/Sync error", e);
+                            addToast("Transaction confirmed but sync failed.", "warning");
                         }
                     },
                     onError: (err) => {

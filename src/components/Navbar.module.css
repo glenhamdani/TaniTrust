@@ -67,6 +67,14 @@
   /* Green-50 */
 }
 
+.link.active {
+  color: #166534;
+  /* Green-800 */
+  background-color: #dcfce7;
+  /* Green-100 */
+  font-weight: 600;
+}
+
 .balance {
   font-weight: 600;
   color: #166534; /* Green-800 */

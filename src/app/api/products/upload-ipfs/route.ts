@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pinata } from "@/lib/pinata";
+import { pinata, checkPinataConfig } from "@/lib/pinata";
 
 export async function POST(request: NextRequest) {
   console.log("📥 Received upload request");
   try {
+    checkPinataConfig();
+
     const formData = await request.formData();
     const file = formData.get("file") as File;
 
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("IPFS upload error:", error);
     return NextResponse.json(
-      { 
+      {
         error: "Failed to upload to IPFS",
         details: error instanceof Error ? error.message : "Unknown error"
       },

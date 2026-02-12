@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import clsx from "clsx";
 import {
     ConnectButton,
     useCurrentAccount,
@@ -10,9 +12,12 @@ import {
 import { Transaction } from "@mysten/sui/transactions";
 import styles from "./Navbar.module.css";
 import { CONSTANTS } from "../constants";
+import { useToast, ToastContainer } from "./Toast";
 
 export function Navbar() {
     const account = useCurrentAccount();
+    const pathname = usePathname();
+    const { toasts, addToast, removeToast } = useToast();
     const { mutate: signAndExecuteTransaction } =
         useSignAndExecuteTransaction();
 
@@ -39,10 +44,12 @@ export function Navbar() {
             { transaction: tx },
             {
                 onSuccess: () => {
+                    addToast("Faucet claimed successfully! Please wait for balance update.", "success");
                     setTimeout(refetchBalance, 2000);
                 },
                 onError: (err) => {
                     console.error("Faucet claim failed", err);
+                    addToast(`Faucet claim failed: ${err.message || "Unknown error"}`, "error");
                 },
             }
         );
@@ -51,6 +58,12 @@ export function Navbar() {
     const balance = balanceData
         ? (Number(balanceData.totalBalance) / 100_000_000).toFixed(2)
         : "0.00";
+
+    const isActive = (path: string) => {
+        if (path === "/") return pathname === "/";
+        if (path === "/marketplace") return pathname === "/marketplace" || pathname.startsWith("/products/");
+        return pathname.startsWith(path);
+    };
 
     return (
         <nav className={styles.navbar}>
@@ -61,13 +74,31 @@ export function Navbar() {
                     </Link>
 
                     <div className={styles.navLinks}>
-                        <Link href="/marketplace" className={styles.link}>
+                        <Link
+                            href="/marketplace"
+                            className={clsx(
+                                styles.link,
+                                isActive("/marketplace") && styles.active
+                            )}
+                        >
                             Marketplace
                         </Link>
-                        <Link href="/farmer" className={styles.link}>
+                        <Link
+                            href="/farmer"
+                            className={clsx(
+                                styles.link,
+                                isActive("/farmer") && styles.active
+                            )}
+                        >
                             Farmer
                         </Link>
-                        <Link href="/buyer" className={styles.link}>
+                        <Link
+                            href="/buyer"
+                            className={clsx(
+                                styles.link,
+                                isActive("/buyer") && styles.active
+                            )}
+                        >
                             Buyer
                         </Link>
                     </div>
@@ -113,6 +144,7 @@ export function Navbar() {
                     <ConnectButton />
                 </div>
             </div>
-        </nav>
+            <ToastContainer toasts={toasts} removeToast={removeToast} />
+        </nav >
     );
 }
